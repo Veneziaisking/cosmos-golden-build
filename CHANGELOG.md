@@ -6,6 +6,42 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [1.2.2] — 2026-06-15
+
+### Changed
+
+- **Canonical `media` UID/GID is now 1001:1001.** Fresh installations create the
+  `media` user with `--uid 1001 --gid 1001` rather than `useradd --system`.
+  The kernel treats both equally; the fixed value ensures reproducibility across
+  deployments. See `docs/golden-build-v1.2.2.md` Section 2 for rationale.
+
+- **Validator Section 1 updated:** `PASS` when `media` is 1001:1001 (canonical).
+  `FAIL` only when `media` is root (UID=0). `WARN` for any other non-root UID/GID
+  (system is functional but not at canonical values — e.g. pre-migration state).
+  Previously the v1.2.1 validator issued a `WARN` for UID ≥ 1000; v1.2.2 promotes
+  1001:1001 to `PASS` and keeps the `WARN` for other non-root UIDs.
+
+### Added
+
+- **Installer UID migration guidance (Phase 2):** When `media` exists with a
+  UID/GID other than 1001:1001, the installer prints a step-by-step migration
+  procedure (stop services → groupmod → usermod → rechown → restart) and exits
+  without modifying the account. It does not silently change an existing UID or GID.
+
+- **Section 9.11 (documentation):** Documents why `cosmos-mongo` volumes remain
+  `999:999` and must never be forcibly rechowned:
+  - The `mongo:8` entrypoint starts as root and unconditionally rechowns
+    `/data/db` and `/data/configdb` to the container-internal `mongodb` user
+    (UID 999) on every start. Any host-side ownership change is silently
+    reverted on the next container restart.
+  - Host UID 999 has no account and GID 999 (`systemd-journal`) has no
+    filesystem access to these paths outside of Docker volume mounts.
+  - The migration `find` scope (`/srv/cosmos`, `/srv/cosmos-storage`,
+    `/srv/media`, `/srv/backups`, `/opt/cosmos`, `/home/media`) explicitly
+    excludes `/srv/docker`, preventing any accidental rechown of MongoDB data.
+
+---
+
 ## [1.2.1] — 2026-06-15
 
 ### Fixed

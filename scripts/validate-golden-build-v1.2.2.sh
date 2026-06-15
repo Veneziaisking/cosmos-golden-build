@@ -1,14 +1,14 @@
 #!/usr/bin/env bash
 # =============================================================================
-# Cosmos Cloud — Golden Build v1.2.1 Validation Script
+# Cosmos Cloud — Golden Build v1.2.2 Validation Script
 #
-# Checks that the live system matches the Golden Build v1.2.1 specification.
+# Checks that the live system matches the Golden Build v1.2.2 specification.
 # Runs all checks and reports PASS or FAIL for each. Exits 0 if all pass,
 # exits 1 if any fail.
 #
 # Does not modify any system state.
 #
-# Usage: sudo bash validate-golden-build-v1.2.1.sh
+# Usage: sudo bash validate-golden-build-v1.2.2.sh
 # =============================================================================
 set -uo pipefail
 
@@ -87,7 +87,7 @@ if [[ "${EUID}" -ne 0 ]]; then
     exit 1
 fi
 
-printf "\n${BOLD}Cosmos Cloud — Golden Build v1.2.1 Validation${NC}\n"
+printf "\n${BOLD}Cosmos Cloud — Golden Build v1.2.2 Validation${NC}\n"
 printf "%-50s  %s\n" "$(date)" "$(hostname)"
 printf '%0.s─' {1..60}
 printf '\n'
@@ -99,14 +99,21 @@ group "1. Service User"
 
 if id "${MEDIA_USER}" &>/dev/null; then
     MEDIA_UID="$(id -u "${MEDIA_USER}")"
-    pass "media user exists (UID=${MEDIA_UID})"
+    MEDIA_GID="$(id -g "${MEDIA_USER}")"
+    pass "media user exists (UID=${MEDIA_UID}, GID=${MEDIA_GID})"
 
+    # v1.2.2 canonical values: UID=1001, GID=1001.
+    # FAIL only if running as root (UID=0).
+    # PASS for the canonical 1001:1001 assignment.
+    # WARN for any other non-root UID/GID (system is functional but not canonical).
     if [[ "${MEDIA_UID}" -eq 0 ]]; then
         fail "media UID is 0 (root) — Cosmos must not run as root"
-    elif [[ "${MEDIA_UID}" -lt 1000 ]]; then
-        pass "media UID ${MEDIA_UID} is in system range (< 1000)"
+    elif [[ "${MEDIA_UID}" -eq 1001 && "${MEDIA_GID}" -eq 1001 ]]; then
+        pass "media UID=1001 GID=1001 (canonical Golden Build v1.2.2 configuration)"
     else
-        warn "media UID ${MEDIA_UID} is in user range (>= 1000) — not a system UID, but acceptable if intentionally configured (e.g. after UID migration)"
+        warn "media UID=${MEDIA_UID} GID=${MEDIA_GID} — expected 1001:1001"
+        warn "  System is functional but not at canonical v1.2.2 values."
+        warn "  See docs/golden-build-v1.2.2.md Section 2 for the migration procedure."
     fi
 
     ACTUAL_SHELL="$(getent passwd "${MEDIA_USER}" | cut -d: -f7)"
@@ -403,16 +410,16 @@ printf "\n"
 if [[ "${FAIL_COUNT}" -gt 0 ]]; then
     printf "${RED}${BOLD}RESULT: FAIL${NC} — %d check(s) did not pass.\n\n" "${FAIL_COUNT}"
     printf "To apply the Golden Build, run:\n"
-    printf "  sudo bash install-cosmos-golden-build-v1.2.1.sh\n\n"
+    printf "  sudo bash install-cosmos-golden-build-v1.2.2.sh\n\n"
     exit 1
 elif "${COSMOS_INIT_PENDING}"; then
-    printf "${YELLOW}${BOLD}RESULT: PENDING${NC} — Golden Build v1.2.1 infrastructure in place; Cosmos initialization required.\n\n"
+    printf "${YELLOW}${BOLD}RESULT: PENDING${NC} — Golden Build v1.2.2 infrastructure in place; Cosmos initialization required.\n\n"
     printf "cosmos.config.json does not exist yet. Start Cosmos to complete initialization:\n"
     printf "  sudo systemctl start CosmosCloud\n"
     printf "Then run the installer again to set DefaultDataPath:\n"
-    printf "  sudo bash install-cosmos-golden-build-v1.2.1.sh\n\n"
+    printf "  sudo bash install-cosmos-golden-build-v1.2.2.sh\n\n"
     exit 0
 else
-    printf "${GREEN}${BOLD}RESULT: PASS${NC} — system matches Golden Build v1.2.1 specification.\n\n"
+    printf "${GREEN}${BOLD}RESULT: PASS${NC} — system matches Golden Build v1.2.2 specification.\n\n"
     exit 0
 fi
