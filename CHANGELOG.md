@@ -6,6 +6,36 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [1.2.3] — 2026-06-15
+
+### Changed
+
+- **`ReadWritePaths` broadened to `/srv /mnt /opt/cosmos`** (was `/srv/cosmos /srv/cosmos-storage /opt/cosmos`).
+  The narrow enumeration blocked Cosmos Marketplace apps that use absolute bind-mount paths outside the
+  previously listed subtrees (e.g. `/srv/config/<appname>`). Granting the entire `/srv` volume and `/mnt`
+  resolves these failures. Filesystem permissions (`root:root 710` on `/srv/docker`, etc.) still enforce
+  the second access-control layer — `ReadWritePaths` only lifts the systemd namespace restriction.
+  See `docs/golden-build-v1.2.3.md` Section 9.12 for full rationale and security tradeoff.
+
+### Added
+
+- **`/srv/config` — canonical app config bind-mount root (installer Phase 3 + validator Section 4):**
+  Created as `media:media 2775` (setgid). New subdirectories created by Cosmos automatically inherit
+  the `media` group. Provides a stable, pre-created target for Marketplace apps that use absolute paths
+  like `/srv/config/<appname>` for their configuration bind mounts.
+
+- **`/mnt` — group write access for media stack (installer Phase 3 + validator Section 4):**
+  The installer sets `chgrp media /mnt && chmod 775 /mnt` so the `media` user can create bind-mount
+  directories for media-oriented applications (Plex, Jellyfin, Sonarr, etc.) without requiring root.
+  Owner remains `root`. The validator checks `group=media mode=775` as a required condition.
+
+- **Validator `/mnt` check (Section 4):** Reports FAIL if `/mnt` has wrong group or mode, with the
+  remediation command.
+
+- **Validator `/srv/config` check (Section 4):** Checks `media:media 2775` via `check_dir`.
+
+---
+
 ## [1.2.2] — 2026-06-15
 
 ### Changed

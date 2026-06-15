@@ -1,13 +1,11 @@
-# Cosmos Cloud — Golden Build v1.2.2
+# Cosmos Cloud — Golden Build v1.2.3
 
 A hardened, least-privilege deployment kit for [Cosmos Cloud](https://cosmos-cloud.io)
 on Debian GNU/Linux 13 (trixie).
 
-> **v1.2.2** formalises `media` UID/GID as **1001:1001**. Fresh installations use
-> explicit `--uid 1001 --gid 1001`; the installer provides migration guidance for
-> existing deployments with other UID/GID values. The validator now reports `PASS`
-> (not `WARN`) for 1001:1001. MongoDB volume ownership (`999:999`) is unchanged and
-> documented as an invariant that must not be forcibly altered.
+> **v1.2.3** broadens `ReadWritePaths` to `/srv /mnt /opt/cosmos` for Marketplace
+> app compatibility, adds `/srv/config` as the canonical app config bind-mount root
+> (`media:media 2775`), and adds group write access on `/mnt` for media-stack apps.
 > See [CHANGELOG](CHANGELOG.md) for details.
 
 > **Disclaimer:** This project is an independent community hardening kit.
@@ -54,10 +52,13 @@ Other Debian 13 configurations should work. Other distributions are not tested.
 | Docker log rotation | `json-file`, `max-size=100m`, `max-file=5` (500 MB per container) |
 | Cosmos config dir | `/srv/cosmos/config/` |
 | Marketplace app data | `/srv/cosmos-storage/` |
+| App config bind-mount root | `/srv/config/` (`media:media 2775`, setgid) |
 | Media files | `/srv/media/` |
 | Backup destination | `/srv/backups/` |
+| External storage access | `/mnt/` (`root:media 775` — media group can create bind-mount dirs) |
 | Cosmos binaries | `/opt/cosmos/` (owned by `media` for self-update) |
 | systemd hardening | `ProtectSystem=strict`, `NoNewPrivileges=true`, `CAP_NET_BIND_SERVICE` only |
+| systemd ReadWritePaths | `/srv /mnt /opt/cosmos` (v1.2.3 — full `/srv` for Marketplace compatibility) |
 
 ---
 
@@ -66,11 +67,11 @@ Other Debian 13 configurations should work. Other distributions are not tested.
 ```
 cosmos-golden-build/
 ├── scripts/
-│   ├── install-cosmos-golden-build-v1.2.2.sh  # Main installer (idempotent)
-│   ├── validate-golden-build-v1.2.2.sh         # Validator (read-only)
+│   ├── install-cosmos-golden-build-v1.2.3.sh  # Main installer (idempotent)
+│   ├── validate-golden-build-v1.2.3.sh         # Validator (read-only)
 │   └── rollback-golden-build-v1.2.sh           # Rollback to pre-install state
 ├── docs/
-│   └── golden-build-v1.2.2.md                  # Full architectural reference
+│   └── golden-build-v1.2.3.md                  # Full architectural reference
 ├── examples/
 │   ├── daemon.json.example                     # Reference Docker daemon config
 │   └── golden-build.conf.example               # Reference systemd drop-in
@@ -104,10 +105,10 @@ a single run is all you need:
 
 ```bash
 # 1. Install
-sudo bash scripts/install-cosmos-golden-build-v1.2.2.sh
+sudo bash scripts/install-cosmos-golden-build-v1.2.3.sh
 
 # 2. Validate
-sudo bash scripts/validate-golden-build-v1.2.2.sh
+sudo bash scripts/validate-golden-build-v1.2.3.sh
 
 # 3. Rollback if needed
 sudo bash scripts/rollback-golden-build-v1.2.sh
@@ -124,13 +125,13 @@ that file on first startup. Two passes are required.
 ### Pass 1 — Provision infrastructure
 
 ```bash
-sudo bash scripts/install-cosmos-golden-build-v1.2.2.sh
+sudo bash scripts/install-cosmos-golden-build-v1.2.3.sh
 ```
 
-Provisions the `media` user, `/srv` layout, `daemon.json`, and the systemd
-drop-in. Reports:
+Provisions the `media` user, `/srv` layout (including `/srv/config`), `/mnt` group
+access, `daemon.json`, and the systemd drop-in. Reports:
 
-> **Golden Build v1.2.1 infrastructure provisioned — Cosmos initialization pending.**
+> **Golden Build v1.2.3 infrastructure provisioned — Cosmos initialization pending.**
 
 This is expected and correct — not an error. Running the validator at this
 point reports `RESULT: PENDING` (exits 0).
@@ -149,7 +150,7 @@ point reports `RESULT: PENDING` (exits 0).
 2. Run the installer again:
 
    ```bash
-   sudo bash scripts/install-cosmos-golden-build-v1.2.2.sh
+   sudo bash scripts/install-cosmos-golden-build-v1.2.3.sh
    ```
 
    The installer detects the wrong `DefaultDataPath`, stops Cosmos briefly,
@@ -158,7 +159,7 @@ point reports `RESULT: PENDING` (exits 0).
 3. Confirm everything passes:
 
    ```bash
-   sudo bash scripts/validate-golden-build-v1.2.2.sh
+   sudo bash scripts/validate-golden-build-v1.2.3.sh
    # Expected: RESULT: PASS
    ```
 
@@ -169,14 +170,14 @@ point reports `RESULT: PENDING` (exits 0).
 The validator checks live system state — not just file contents:
 
 ```bash
-sudo bash scripts/validate-golden-build-v1.2.2.sh
+sudo bash scripts/validate-golden-build-v1.2.3.sh
 ```
 
 **Output states:**
 
 | Result | Meaning |
 |---|---|
-| `RESULT: PASS` | System fully matches Golden Build v1.2.1 |
+| `RESULT: PASS` | System fully matches Golden Build v1.2.3 |
 | `RESULT: PENDING` | Infrastructure in place; Cosmos initialization required (run Pass 2) |
 | `RESULT: FAIL` | One or more checks failed; review output for details |
 
@@ -212,7 +213,7 @@ access. The security gain of this architecture is a reduced blast radius if the
 Cosmos *process itself* is compromised — not full Docker isolation.
 
 This is a documented and accepted trade-off for a personal server context.
-See `docs/golden-build-v1.2.2.md` Section 2 for the full security model.
+See `docs/golden-build-v1.2.3.md` Section 2 for the full security model.
 
 ### COSMOS_CONFIG_FOLDER requires a trailing slash
 
@@ -265,7 +266,7 @@ Backups are never deleted automatically.
 ## Full Documentation
 
 Architecture, design rationale, validation results, and rollback procedures are
-documented in [`docs/golden-build-v1.2.2.md`](docs/golden-build-v1.2.2.md).
+documented in [`docs/golden-build-v1.2.3.md`](docs/golden-build-v1.2.3.md).
 
 ---
 

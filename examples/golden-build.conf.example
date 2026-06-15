@@ -1,7 +1,13 @@
 # /etc/systemd/system/CosmosCloud.service.d/golden-build.conf
 #
-# Golden Build v1.2.1 systemd hardening drop-in for CosmosCloud.
+# Golden Build v1.2.3 systemd hardening drop-in for CosmosCloud.
 # Place this file at the path above. Do not modify CosmosCloud.service directly.
+#
+# ReadWritePaths=/srv /mnt /opt/cosmos (v1.2.3):
+#   /srv     — full application data volume; required for Marketplace apps that use
+#              absolute bind-mount paths outside /srv/cosmos and /srv/cosmos-storage
+#   /mnt     — optional external storage; required for media-stack apps (Plex, Jellyfin)
+#   /opt/cosmos — Cosmos binaries; required for cosmos-launcher self-update
 #
 # After placing this file, run:
 #   systemctl daemon-reload
@@ -18,7 +24,7 @@ Environment=COSMOS_CONFIG_FOLDER=/srv/cosmos/config/
 ProtectSystem=strict
 ProtectHome=true
 PrivateTmp=true
-ReadWritePaths=/srv/cosmos /srv/cosmos-storage /opt/cosmos
+ReadWritePaths=/srv /mnt /opt/cosmos
 ProtectKernelTunables=true
 ProtectKernelModules=true
 ProtectControlGroups=true
