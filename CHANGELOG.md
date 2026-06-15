@@ -6,6 +6,41 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [1.2.1] — 2026-06-15
+
+### Fixed
+
+- **Installer startup race (Phase 7):** CosmosCloud is now explicitly stopped
+  before Docker is restarted, eliminating the window where `Restart=always` could
+  auto-start Cosmos before the systemd drop-in `COSMOS_CONFIG_FOLDER` setting was
+  guaranteed active. The corrected sequence is:
+  `stop CosmosCloud → daemon-reload → restart Docker → start CosmosCloud`.
+  Previously, Cosmos could start during the Docker restart window using the
+  compiled-in default `/var/lib/cosmos/`, leaving orphan files at that path.
+  On systems installed with v1.2, `/var/lib/cosmos` is a safe-to-remove artifact.
+
+### Added
+
+- **Phase 9 — Orphan Artifact Check (installer):** After completing Phase 8
+  validation, the installer now inspects `/var/lib/cosmos` and `/var/lib/docker`
+  and reports their status: WARN (inactive; safe to remove) or FAIL (active file
+  descriptors detected). When both are inactive, the installer prints exact
+  `rm -rf` commands to clean them up.
+
+- **Section 9 — Orphan Artifact Check (validator):** `validate-golden-build-v1.2.1.sh`
+  includes a new check section for `/var/lib/cosmos` and `/var/lib/docker`:
+  - **PASS** if the path does not exist.
+  - **WARN** if the path exists with no open file descriptors (inactive orphan artifact).
+  - **FAIL** if the path exists with open file descriptors (active use — do not remove).
+  The validator does not fail on the mere presence of these paths, distinguishing
+  inactive orphan artifacts from active state.
+
+- **Section 9.10 (documentation):** `docs/golden-build-v1.2.1.md` documents the
+  root cause of both orphan artifacts, the v1.2.1 fix, safe-removal procedure, and
+  confirmation that neither path reappears after removal when `daemon.json` is in place.
+
+---
+
 ## [1.2] — 2026-06-13
 
 ### Added
